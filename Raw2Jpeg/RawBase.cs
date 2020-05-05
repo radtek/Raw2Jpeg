@@ -21,8 +21,6 @@ namespace Raw2Jpeg
             this._content = Content;
             _header = new TiffHeader(ref Content);
             _tiffIFDs = FillTifID(_header.AdressIFD);
-            var test = (from tag in (from t in _tiffIFDs select t.tiffTags).FirstOrDefault() where tag.TagID == 271 select tag.TagValue).FirstOrDefault();
-
         }
 
 
@@ -66,6 +64,10 @@ namespace Raw2Jpeg
                     case string a when a.ToUpper().Contains("CANON"):
                         _rawType = RawType.CR2;
                         break;
+                    case string a when a.ToUpper().Contains("HASSELBLAD"):
+                        _rawType = RawType.Hasselblad;
+                        break;
+
 
                 }
             if (ifd.HasSubIFD)
@@ -105,12 +107,22 @@ namespace Raw2Jpeg
                         return GetCR2Bitmap();
                     case RawType.NEF:
                         return GetNEFBitmap();
+                    case RawType.Hasselblad:
+                        return Get3FRbitmap();
                     default:
                         return GetTiffBitmap();
                 }
 
             }
 
+        }
+
+        private byte[] Get3FRbitmap()
+        {
+            TiffTag[] tagSub = _tiffIFDs[0].tiffTags;
+            var tIImageStartOffset = (from t in tagSub where t.TagID == 273 select t).FirstOrDefault().DataOffset;
+            var tIImageLengthOffset = (from t in tagSub where t.TagID == 279 select t).FirstOrDefault().DataOffset;
+            return CreateBitmap(tIImageStartOffset, tIImageLengthOffset);
         }
 
         private byte[] GetTiffBitmap()

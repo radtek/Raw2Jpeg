@@ -9,6 +9,7 @@ namespace Raw2Jpeg
         NEF,
         CR2,
         ARW,
+        Hasselblad,
         Tiff
     }
 }
