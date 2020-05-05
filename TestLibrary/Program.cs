@@ -17,10 +17,9 @@ namespace TestLibrary
                 FileStream fs = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
                 byte[] bInput = new byte[fs.Length];
                 fs.Read(bInput, 0, (int)fs.Length);
-                byte[] bOutput = default(byte[]);
                 Tiff tiff = new Tiff(ref bInput);
-                var testString = (from x in (from t in tiff.TiffIFDs select t.tiffTags).FirstOrDefault() where x.DataType == 2 select x);
-                File.WriteAllBytes(string.Format("c:\\temp\\Destination\\{0}.jpg", pathName), bOutput);
+                if(tiff.Bitmap!=default(byte[]))
+                    File.WriteAllBytes(string.Format("c:\\temp\\Destination\\{0}.jpg", pathName), tiff.Bitmap);
             }
 
         }

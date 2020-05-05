@@ -140,6 +140,8 @@ namespace Raw2Jpeg.TiffStructure
         {
             var numerator = getInt(dataOffset, binput, isBigEndian);
             var denominator = getInt(dataOffset+4, binput, isBigEndian);
+            if (denominator == 0)
+                return 0;
             return numerator / denominator;
         }
 
@@ -188,7 +190,9 @@ namespace Raw2Jpeg.TiffStructure
 
         public static object getUndefined(uint DataOffset, byte[] binput, bool isBigEndian)
         {
-            throw new NotImplementedException();
+            byte[] breturn = new byte[8];
+            Array.Copy(binput, DataOffset, breturn, 0, 8);
+            return breturn;
         }
 
         public static sbyte getByte(uint DataOffset, byte[] binput)
