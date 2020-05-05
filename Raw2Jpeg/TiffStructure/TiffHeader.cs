@@ -6,7 +6,7 @@ namespace Raw2Jpeg.TiffStructure
 {
     internal struct TiffHeader
     {
-        public TiffHeader(byte[] header)
+        public TiffHeader(ref byte[] header)
         {
             Endian = string.Format("{0}{1}", (char)header[1], (char)header[0]);
             ISBigEndian = Endian == "MM";
@@ -29,7 +29,6 @@ namespace Raw2Jpeg.TiffStructure
         public string Endian { get; set; }
         public int TIFF { get; set; }
         public uint AdressIFD { get; set; }
-
         public bool ISBigEndian { get; set; }
 
     }

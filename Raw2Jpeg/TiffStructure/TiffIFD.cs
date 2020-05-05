@@ -1,22 +1,24 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
 namespace Raw2Jpeg.TiffStructure
 {
-    internal struct TiffIFD
+    public struct TiffIFD
     {
-        public TiffIFD(byte[] bytes, bool ISBigEndian)
+        public TiffIFD(ref byte[] content,uint adressOffset, bool ISBigEndian)
         {
+            uint ifdEnd;
             if (ISBigEndian)
             {
-                tagCount = BitConverter.ToUInt16(new byte[] { bytes[1], bytes[0] });
-                NextIFDOffset = BitConverter.ToUInt32(new byte[] { bytes[bytes.Length - 1], bytes[bytes.Length - 2], bytes[bytes.Length - 3], bytes[bytes.Length - 4] });
+                tagCount = BitConverter.ToUInt16(new byte[] { content[adressOffset+ 1], content[adressOffset] },0);
+                ifdEnd = adressOffset+(uint)(tagCount * 12 + 6);
+                NextIFDOffset = BitConverter.ToUInt32(new byte[] { content[ifdEnd - 1], content[ifdEnd - 2], content[ifdEnd - 3], content[ifdEnd - 4] },0);
             }
             else
             {
-                tagCount = BitConverter.ToUInt16(new byte[] { bytes[0], bytes[1] });
-                NextIFDOffset = BitConverter.ToUInt32(new byte[] { bytes[bytes.Length - 4], bytes[bytes.Length - 3], bytes[bytes.Length - 2], bytes[bytes.Length - 1] });
+                tagCount = BitConverter.ToUInt16(new byte[] { content[adressOffset], content[adressOffset+1] },0);
+                ifdEnd = adressOffset+(uint)(tagCount * 12 + 6);
+                NextIFDOffset = BitConverter.ToUInt32(new byte[] { content[ifdEnd - 4], content[ifdEnd - 3], content[ifdEnd - 2], content[ifdEnd - 1] },0);
             }
             tiffTags = new TiffTag[tagCount];
 
@@ -24,10 +26,7 @@ namespace Raw2Jpeg.TiffStructure
             for (int miind = 0; miind < tagCount; miind++)
             {
                 byte[] bArray = new byte[12];
-                Array.Copy(bytes, 2 + miind * 12, bArray, 0, 12);
-
-
-                tiffTags[miind] = new TiffTag(bArray, ISBigEndian);
+                tiffTags[miind] = new TiffTag(ref content,(uint)(adressOffset + 2 + miind * 12), ISBigEndian);
 
             }
             var tIFD = (from t in tiffTags where t.TagID == 330 select t).FirstOrDefault();
@@ -44,4 +43,4 @@ namespace Raw2Jpeg.TiffStructure
         public TiffIFD[] SubIFDS { get; set; }
     }
 }
-}
+

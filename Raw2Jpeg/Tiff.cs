@@ -4,11 +4,9 @@ using System.Text;
 
 namespace Raw2Jpeg
 {
-    public enum RawType
+    public class Tiff:TiffBase
     {
-        NEF,
-        CR2,
-        ARW,
-        Tiff
+        public Tiff(ref byte[] content) : base(ref content)
+        { }
     }
 }

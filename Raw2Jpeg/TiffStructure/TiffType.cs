@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Text;
 
 namespace Raw2Jpeg.TiffStructure
 {
-    public static class TiffType
+    internal static class TiffType
     {
         public static object getValue(TiffTag tag, ref byte[] binput, bool isBigEndian)
         {
@@ -12,122 +13,219 @@ namespace Raw2Jpeg.TiffStructure
             switch (tag.DataType)
             {
                 case 1:
-                    objReturn = getUByte(tag, binput);
+                    if (tag.DataCount * sizeof(byte) <= 4)
+                        objReturn = (object)BitConverter.GetBytes(tag.DataOffset);
+                    else
+                        objReturn = getUByte(tag.DataOffset, binput);
                     break;
                 case 2:
-                    objReturn = getASCII(tag, binput, isBigEndian);
+                    objReturn = GetString(tag.DataCount, tag.DataOffset, binput, isBigEndian);
                     break;
                 case 3:
-                    objReturn = getUShort(tag, binput, isBigEndian);
+                    if (tag.DataCount*sizeof(ushort)<=4)
+                    {
+                        byte[] bs = BitConverter.GetBytes(tag.DataOffset);
+                        if (tag.DataCount == 1)
+                            objReturn = getUShort(0, bs, isBigEndian);
+                        else
+                        {
+                            ushort[] us = new ushort[2];
+                            us[0] = getUShort(0, bs, isBigEndian);
+                            us[1] = getUShort(1, bs, isBigEndian);
+                            objReturn = us;
+                        }
+                    }
+                    else
+                    {
+                        List<ushort> lstUS = new List<ushort>();
+                        for (uint miind = 0; miind < tag.DataCount; miind++)
+                            lstUS.Add(getUShort(tag.DataOffset + miind * sizeof(ushort), binput, isBigEndian));
+                        objReturn = lstUS.ToArray();
+                    }
                     break;
                 case 4:
-                    objReturn = getUInt(tag, binput, isBigEndian);
+                    if (tag.DataCount * sizeof(uint) <= 4)
+                    {
+                        byte[] bs = BitConverter.GetBytes(tag.DataOffset);
+                        objReturn = getUInt(0,bs,isBigEndian);
+                    }
+                    else
+                    {
+                        List<uint> lstui = new List<uint>();
+                        for (uint miind = 0; miind < tag.DataCount; miind++)
+                            lstui.Add(getUInt(tag.DataOffset + miind * sizeof(uint), binput, isBigEndian));
+                        objReturn = lstui.ToArray();
+                    }
                     break;
                 case 5:
-                    objReturn = getULong(tag, binput, isBigEndian);
+                    {
+                        List<float> lstul = new List<float>();
+                        for (uint miind = 0; miind < tag.DataCount; miind++)
+                            lstul.Add(getRational(tag.DataOffset + miind * sizeof(long), binput, isBigEndian));
+                        objReturn = lstul.ToArray();
+                    }
                     break;
                 case 6:
-                    objReturn = getByte(tag, binput);
+                    if (tag.DataCount * sizeof(byte) <= 4)
+                        objReturn = (object)BitConverter.GetBytes(tag.DataOffset);
+                    else
+                        objReturn = getByte(tag.DataOffset, binput);
                     break;
                 case 7:
-                    objReturn = getUndefined(tag, binput, isBigEndian);
+                    objReturn = getUndefined(tag.DataOffset, binput, isBigEndian);
                     break;
                 case 8:
-                    objReturn = getShort(tag, binput, isBigEndian);
+                    if (tag.DataCount * sizeof(short) <= 4)
+                    {
+                        byte[] bs = BitConverter.GetBytes(tag.DataOffset);
+                        if (tag.DataCount == 1)
+                            objReturn = getShort(0, bs, isBigEndian);
+                        else
+                        {
+                            short[] us = new short[2];
+                            us[0] = getShort(0, bs, isBigEndian);
+                            us[1] = getShort(1, bs, isBigEndian);
+                            objReturn = us;
+                        }
+                    }
+                    else
+                    {
+                        List<short> lstUS = new List<short>();
+                        for (uint miind = 0; miind < tag.DataCount; miind++)
+                            lstUS.Add(getShort(tag.DataOffset + miind * sizeof(ushort), binput, isBigEndian));
+                        objReturn = lstUS.ToArray();
+                    }
                     break;
                 case 9:
-                    objReturn = getInt(tag, binput, isBigEndian);
+                    if (tag.DataCount * sizeof(int) <= 4)
+                    {
+                        byte[] bs = BitConverter.GetBytes(tag.DataOffset);
+                        objReturn = getInt(0, bs, isBigEndian);
+                    }
+                    else
+                    {
+                        List<int> lstui = new List<int>();
+                        for (uint miind = 0; miind < tag.DataCount; miind++)
+                            lstui.Add(getInt(tag.DataOffset + miind * sizeof(int), binput, isBigEndian));
+                        objReturn = lstui.ToArray();
+                    }
                     break;
                 case 10:
-                    objReturn = getLong(tag, binput, isBigEndian);
+                    {
+                        List<float> lstul = new List<float>();
+                        for (uint miind = 0; miind < tag.DataCount; miind++)
+                            lstul.Add(getRational(tag.DataOffset + miind * sizeof(long), binput, isBigEndian));
+                        objReturn = lstul.ToArray();
+                    }
                     break;
                 case 11:
-                    objReturn = getFloat(tag, binput, isBigEndian);
+                    {
+                        List<float> lstul = new List<float>();
+                        for (uint miind = 0; miind < tag.DataCount; miind++)
+                            lstul.Add(getFloat(tag.DataOffset + miind * sizeof(long), binput, isBigEndian));
+                        objReturn = lstul.ToArray();
+                    }
                     break;
                 case 12:
-                    objReturn = getDouble(tag, binput, isBigEndian);
+                    List<double> lstdb = new List<double>();
+                    for (uint miind = 0; miind < tag.DataCount; miind++)
+                        lstdb.Add(getDouble(tag.DataOffset + miind * sizeof(double), binput, isBigEndian));
+                    objReturn = lstdb.ToArray();
                     break;
             }
             return objReturn;
         }
 
-        public static double getDouble(TiffTag tag, byte[] binput, bool isBigEndian)
+        private static float getRational(uint dataOffset, byte[] binput, bool isBigEndian)
         {
-            if (isBigEndian)
-                return BitConverter.ToDouble(new byte[] { binput[tag.DataOffset + 7], binput[tag.DataOffset + 6], binput[tag.DataOffset + 5], binput[tag.DataOffset + 4], binput[tag.DataOffset + 3], binput[tag.DataOffset + 2], binput[tag.DataOffset + 1], binput[tag.DataOffset] });
-            return BitConverter.ToDouble(new byte[] { binput[tag.DataOffset], binput[tag.DataOffset + 1], binput[tag.DataOffset + 2], binput[tag.DataOffset + 3], binput[tag.DataOffset + 4], binput[tag.DataOffset + 5], binput[tag.DataOffset + 6], binput[tag.DataOffset + 7] });
+            var numerator = getInt(dataOffset, binput, isBigEndian);
+            var denominator = getInt(dataOffset+4, binput, isBigEndian);
+            return numerator / denominator;
         }
 
-        public static float getFloat(TiffTag tag, byte[] binput, bool isBigEndian)
+        private static object GetString(uint dataCount, uint dataOffset, byte[] binput, bool isBigEndian)
         {
-            if (isBigEndian)
-                return BitConverter.ToSingle(new byte[] { binput[tag.DataOffset + 3], binput[tag.DataOffset + 2], binput[tag.DataOffset + 1], binput[tag.DataOffset] });
-            return BitConverter.ToSingle(new byte[] { binput[tag.DataOffset], binput[tag.DataOffset + 1], binput[tag.DataOffset + 2], binput[tag.DataOffset + 3] });
+            ASCIIEncoding aSCII = new ASCIIEncoding();
+            byte[] bascii = new byte[dataCount];
+            Array.Copy(binput, dataOffset, bascii, 0, dataCount);
+            return aSCII.GetString(bascii);
         }
 
-        public static long getLong(TiffTag tag, byte[] binput, bool isBigEndian)
+        public static double getDouble(uint DataOffset, byte[] binput, bool isBigEndian)
         {
             if (isBigEndian)
-                return BitConverter.ToInt64(new byte[] { binput[tag.DataOffset + 7], binput[tag.DataOffset + 6], binput[tag.DataOffset + 5], binput[tag.DataOffset + 4], binput[tag.DataOffset + 3], binput[tag.DataOffset + 2], binput[tag.DataOffset + 1], binput[tag.DataOffset] });
-            return BitConverter.ToInt64(new byte[] { binput[tag.DataOffset], binput[tag.DataOffset + 1], binput[tag.DataOffset + 2], binput[tag.DataOffset + 3], binput[tag.DataOffset + 4], binput[tag.DataOffset + 5], binput[tag.DataOffset + 6], binput[tag.DataOffset + 7] });
+                return BitConverter.ToDouble(new byte[] { binput[DataOffset + 7], binput[DataOffset + 6], binput[DataOffset + 5], binput[DataOffset + 4], binput[DataOffset + 3], binput[DataOffset + 2], binput[DataOffset + 1], binput[DataOffset] },0);
+            return BitConverter.ToDouble(new byte[] { binput[DataOffset], binput[DataOffset + 1], binput[DataOffset + 2], binput[DataOffset + 3], binput[DataOffset + 4], binput[DataOffset + 5], binput[DataOffset + 6], binput[DataOffset + 7] },0);
         }
 
-        public static int getInt(TiffTag tag, byte[] binput, bool isBigEndian)
+        public static float getFloat(uint DataOffset, byte[] binput, bool isBigEndian)
         {
             if (isBigEndian)
-                return BitConverter.ToInt32(new byte[] { binput[tag.DataOffset + 3], binput[tag.DataOffset + 2], binput[tag.DataOffset + 1], binput[tag.DataOffset] });
-            return BitConverter.ToInt32(new byte[] { binput[tag.DataOffset], binput[tag.DataOffset + 1], binput[tag.DataOffset + 2], binput[tag.DataOffset + 3] });
+                return BitConverter.ToSingle(new byte[] { binput[DataOffset + 3], binput[DataOffset + 2], binput[DataOffset + 1], binput[DataOffset] },0);
+            return BitConverter.ToSingle(new byte[] { binput[DataOffset], binput[DataOffset + 1], binput[DataOffset + 2], binput[DataOffset + 3] },0);
         }
 
-        public static short getShort(TiffTag tag, byte[] binput, bool isBigEndian)
+        public static long getLong(uint DataOffset, byte[] binput, bool isBigEndian)
         {
             if (isBigEndian)
-                return BitConverter.ToInt16(new byte[] { binput[tag.DataOffset + 1], binput[tag.DataOffset] });
-            return BitConverter.ToInt16(new byte[] { binput[tag.DataOffset], binput[tag.DataOffset + 1] });
+                return BitConverter.ToInt64(new byte[] { binput[DataOffset + 7], binput[DataOffset + 6], binput[DataOffset + 5], binput[DataOffset + 4], binput[DataOffset + 3], binput[DataOffset + 2], binput[DataOffset + 1], binput[DataOffset] },0);
+            return BitConverter.ToInt64(new byte[] { binput[DataOffset], binput[DataOffset + 1], binput[DataOffset + 2], binput[DataOffset + 3], binput[DataOffset + 4], binput[DataOffset + 5], binput[DataOffset + 6], binput[DataOffset + 7] },0);
         }
 
-        public static object getUndefined(TiffTag tag, byte[] binput, bool isBigEndian)
+        public static int getInt(uint DataOffset, byte[] binput, bool isBigEndian)
+        {
+            if (isBigEndian)
+                return BitConverter.ToInt32(new byte[] { binput[DataOffset + 3], binput[DataOffset + 2], binput[DataOffset + 1], binput[DataOffset] },0);
+            return BitConverter.ToInt32(new byte[] { binput[DataOffset], binput[DataOffset + 1], binput[DataOffset + 2], binput[DataOffset + 3] },0);
+        }
+
+        public static short getShort(uint DataOffset, byte[] binput, bool isBigEndian)
+        {
+            if (isBigEndian)
+                return BitConverter.ToInt16(new byte[] { binput[DataOffset + 1], binput[DataOffset] },0);
+            return BitConverter.ToInt16(new byte[] { binput[DataOffset], binput[DataOffset + 1] },0);
+        }
+
+        public static object getUndefined(uint DataOffset, byte[] binput, bool isBigEndian)
         {
             throw new NotImplementedException();
         }
 
-        public static sbyte getByte(TiffTag tag, byte[] binput)
+        public static sbyte getByte(uint DataOffset, byte[] binput)
         {
-            return Convert.ToSByte(binput[tag.DataOffset]);
+            return Convert.ToSByte(binput[DataOffset]);
         }
 
-        public static ulong getULong(TiffTag tag, byte[] binput, bool isBigEndian)
+        public static ulong getULong(uint DataOffset, byte[] binput, bool isBigEndian)
         {
             if (isBigEndian)
-                return BitConverter.ToUInt64(new byte[] { binput[tag.DataOffset + 7], binput[tag.DataOffset + 6], binput[tag.DataOffset + 5], binput[tag.DataOffset + 4], binput[tag.DataOffset + 3], binput[tag.DataOffset + 2], binput[tag.DataOffset + 1], binput[tag.DataOffset] });
-            return BitConverter.ToUInt64(new byte[] { binput[tag.DataOffset], binput[tag.DataOffset + 1], binput[tag.DataOffset + 2], binput[tag.DataOffset + 3], binput[tag.DataOffset + 4], binput[tag.DataOffset + 5], binput[tag.DataOffset + 6], binput[tag.DataOffset + 7] });
+                return BitConverter.ToUInt64(new byte[] { binput[DataOffset + 7], binput[DataOffset + 6], binput[DataOffset + 5], binput[DataOffset + 4], binput[DataOffset + 3], binput[DataOffset + 2], binput[DataOffset + 1], binput[DataOffset] },0);
+            return BitConverter.ToUInt64(new byte[] { binput[DataOffset], binput[DataOffset + 1], binput[DataOffset + 2], binput[DataOffset + 3], binput[DataOffset + 4], binput[DataOffset + 5], binput[DataOffset + 6], binput[DataOffset + 7] },0);
         }
 
-        public static uint getUInt(TiffTag tag, byte[] binput, bool isBigEndian)
+        public static uint getUInt(uint DataOffset, byte[] binput, bool isBigEndian)
         {
             if (isBigEndian)
-                return BitConverter.ToUInt32(new byte[] { binput[tag.DataOffset + 3], binput[tag.DataOffset + 2], binput[tag.DataOffset + 1], binput[tag.DataOffset] });
-            return BitConverter.ToUInt32(new byte[] { binput[tag.DataOffset], binput[tag.DataOffset + 1], binput[tag.DataOffset + 2], binput[tag.DataOffset + 3] });
+                return BitConverter.ToUInt32(new byte[] { binput[DataOffset + 3], binput[DataOffset + 2], binput[DataOffset + 1], binput[DataOffset] },0);
+            return BitConverter.ToUInt32(new byte[] { binput[DataOffset], binput[DataOffset + 1], binput[DataOffset + 2], binput[DataOffset + 3] },0);
         }
 
-        public static ushort getUShort(TiffTag tag, byte[] binput, bool isBigEndian)
+        public static ushort getUShort(uint DataOffset, byte[] binput, bool isBigEndian)
         {
             if (isBigEndian)
-                return BitConverter.ToUInt16(new byte[] { binput[tag.DataOffset + 1], binput[tag.DataOffset] });
-            return BitConverter.ToUInt16(new byte[] { binput[tag.DataOffset], binput[tag.DataOffset + 1] });
+                return BitConverter.ToUInt16(new byte[] { binput[DataOffset + 1], binput[DataOffset] },0);
+            return BitConverter.ToUInt16(new byte[] { binput[DataOffset], binput[DataOffset + 1] },0);
         }
 
-        public static string getASCII(TiffTag tag, byte[] binput, bool isBigEndian)
+        public static char getASCII(uint DataOffset, byte[] binput, bool isBigEndian)
         {
-            StringBuilder sb = new StringBuilder();
-            for (int miind = 0; miind < tag.DataCount; miind++)
-                sb.Append(BitConverter.ToChar(binput, miind + (int)tag.DataOffset));
-            return sb.ToString();
+            return BitConverter.ToChar(binput,(int) DataOffset);
+             
         }
 
-        public static byte getUByte(TiffTag tag, byte[] binput)
+        public static byte getUByte(uint DataOffset, byte[] binput)
         {
-            return Convert.ToByte(binput[tag.DataOffset]);
+            return Convert.ToByte(binput[DataOffset]);
         }
     }
 }

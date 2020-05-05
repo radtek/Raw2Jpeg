@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Raw2Jpeg.TiffStructure
 {
-        public static class TiffTagIDValue
+        internal static class TiffTagIDValue
         {
 
             static Dictionary<int, string> _value = new Dictionary<int, string>
