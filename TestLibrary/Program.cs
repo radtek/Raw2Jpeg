@@ -9,6 +9,10 @@ namespace TestLibrary
     {
         static void Main(string[] args)
         {
+            var a = 1;
+            var b = a << 1;
+            var c = a >> 1;
+
             string[] files = Directory.GetFiles(@"C:\temp\Source");
             foreach (var fileName in files)
             {

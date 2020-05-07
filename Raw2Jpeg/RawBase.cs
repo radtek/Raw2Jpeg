@@ -1,4 +1,5 @@
-﻿using Raw2Jpeg.Raw;
+﻿using Raw2Jpeg.Helper;
+using Raw2Jpeg.Raw;
 using Raw2Jpeg.TiffStructure;
 using System;
 using System.Collections.Generic;
@@ -73,6 +74,7 @@ namespace Raw2Jpeg
             if (ifd.HasSubIFD)
             {
                 var tIFD = (from t in ifd.tiffTags where t.TagID == 330 select t).FirstOrDefault();
+                var Model= (from t in ifd.tiffTags where t.TagID == 272 select t.TagValue).FirstOrDefault().ToString();
                 List<TiffIFD> lstsubID = new List<TiffIFD>();
                 for (int miind = 0; miind < tIFD.DataCount; miind++)
                 {
@@ -82,7 +84,7 @@ namespace Raw2Jpeg
                     else
                         SubifdOffset = BitConverter.ToUInt32(new byte[] { _content[(4 * miind) + tIFD.DataOffset], _content[(4 * miind) + tIFD.DataOffset + 1], _content[(4 * miind) + tIFD.DataOffset + 2], _content[(4 * miind) + tIFD.DataOffset + 3] }, 0);
 
-                    if (_rawType == RawType.ARW)
+                    if (_rawType == RawType.ARW || Model.ToUpper().Contains("HASSELBLAD X1D\0"))
                         SubifdOffset = tIFD.DataOffset;
                     lstsubID.Add(FillIFD(SubifdOffset));
                 }
@@ -119,10 +121,10 @@ namespace Raw2Jpeg
 
         private byte[] Get3FRbitmap()
         {
-            TiffTag[] tagSub = _tiffIFDs[0].tiffTags;
+            TiffTag[] tagSub = _tiffIFDs[0].tiffTags;           
             var tIImageStartOffset = (from t in tagSub where t.TagID == 273 select t).FirstOrDefault().DataOffset;
             var tIImageLengthOffset = (from t in tagSub where t.TagID == 279 select t).FirstOrDefault().DataOffset;
-            return CreateBitmap(tIImageStartOffset, tIImageLengthOffset);
+            return CreateBitmap(tIImageStartOffset, tIImageLengthOffset, _tiffIFDs[0]);
         }
 
         private byte[] GetTiffBitmap()
@@ -135,13 +137,22 @@ namespace Raw2Jpeg
             TiffTag[] tagSub = _tiffIFDs[0].SubIFDS[0].tiffTags;
             var tIImageStartOffset = (from t in tagSub where t.TagID == 513 select t).FirstOrDefault().DataOffset;
             var tIImageLengthOffset = (from t in tagSub where t.TagID == 514 select t).FirstOrDefault().DataOffset;
-            return CreateBitmap(tIImageStartOffset, tIImageLengthOffset);
+            return CreateBitmap(tIImageStartOffset, tIImageLengthOffset, _tiffIFDs[0].SubIFDS[0]);
         }
 
-        private byte[] CreateBitmap(uint tIImageStartOffset, uint tIImageLengthOffset)
+        private byte[] CreateBitmap(uint tIImageStartOffset, uint tIImageLengthOffset,TiffIFD tiffIFD)
         {
             byte[] Img = new byte[tIImageLengthOffset];
             Array.Copy(_content, tIImageStartOffset, Img, 0, tIImageLengthOffset);
+            if (tiffIFD.Compression == 1 && tiffIFD.BitsPerSample[0] == 8 && tiffIFD.BitsPerSample[1] == 8 && tiffIFD.BitsPerSample[2] == 8)
+            {
+                return ImageHelper.ConvertFromUncompressed((int)tiffIFD.Width, (int)tiffIFD.Height, ref Img);
+            }
+            if (tiffIFD.Compression == 1 && tiffIFD.BitsPerSample.Length == 1 && tiffIFD.BitsPerSample[0] == 16)
+            {
+                return ImageHelper.ConvertFrom16bits((int)tiffIFD.Width, (int)tiffIFD.Height, ref Img);
+            }
+
             return Img;
         }
 
@@ -151,7 +162,7 @@ namespace Raw2Jpeg
             TiffTag[] tagSub = _tiffIFDs[0].tiffTags;
             var tIImageStartOffset = (from t in tagSub where t.TagID == 273 select t).FirstOrDefault().DataOffset;
             var tIImageLengthOffset = (from t in tagSub where t.TagID == 279 select t).FirstOrDefault().DataOffset;
-            return CreateBitmap(tIImageStartOffset, tIImageLengthOffset);
+            return CreateBitmap(tIImageStartOffset, tIImageLengthOffset, _tiffIFDs[0]);
         }
 
         private byte[] GetArwBitmap()
@@ -159,7 +170,7 @@ namespace Raw2Jpeg
             TiffTag[] tagSub = _tiffIFDs[0].tiffTags;
             var tIImageStartOffset = (from t in tagSub where t.TagID == 513 select t).FirstOrDefault().DataOffset;
             var tIImageLengthOffset = (from t in tagSub where t.TagID == 514 select t).FirstOrDefault().DataOffset;
-            return CreateBitmap(tIImageStartOffset, tIImageLengthOffset);
+            return CreateBitmap(tIImageStartOffset, tIImageLengthOffset, _tiffIFDs[0]);
         }
 
 
