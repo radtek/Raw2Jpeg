@@ -4,6 +4,7 @@ using Raw2Jpeg.TiffStructure;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
+using System.Drawing;
 using System.Linq;
 using System.Security.Cryptography;
 
@@ -121,10 +122,10 @@ namespace Raw2Jpeg
 
         private byte[] Get3FRbitmap()
         {
-            TiffTag[] tagSub = _tiffIFDs[0].tiffTags;           
+            TiffTag[] tagSub = _tiffIFDs[0].SubIFDS[0].tiffTags;           
             var tIImageStartOffset = (from t in tagSub where t.TagID == 273 select t).FirstOrDefault().DataOffset;
             var tIImageLengthOffset = (from t in tagSub where t.TagID == 279 select t).FirstOrDefault().DataOffset;
-            return CreateBitmap(tIImageStartOffset, tIImageLengthOffset, _tiffIFDs[0]);
+            return CreateBitmap(tIImageStartOffset, tIImageLengthOffset, _tiffIFDs[0].SubIFDS[0]);
         }
 
         private byte[] GetTiffBitmap()
@@ -150,7 +151,10 @@ namespace Raw2Jpeg
             }
             if (tiffIFD.Compression == 1 && tiffIFD.BitsPerSample.Length == 1 && tiffIFD.BitsPerSample[0] == 16)
             {
-                return ImageHelper.ConvertFrom16bits((int)tiffIFD.Width, (int)tiffIFD.Height, ref Img);
+                byte[] bs= ImageHelper.ConvertFrom16bits((int)tiffIFD.Width, (int)tiffIFD.Height, ref Img);
+                return bs;
+                bs=ImageHelper.BayerDemosaic24((int)tiffIFD.Width, (int)tiffIFD.Height,ref bs);
+                return ImageHelper.byteArrayToBMP((int)tiffIFD.Width, (int)tiffIFD.Height, ref bs);
             }
 
             return Img;
