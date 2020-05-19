@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Raw2Jpeg.TiffStructure
 {
-    public struct TiffIFD
+    public class TiffIFD
     {
         public TiffIFD(ref byte[] content, uint adressOffset, bool ISBigEndian)
         {
@@ -31,8 +31,9 @@ namespace Raw2Jpeg.TiffStructure
 
             }
             var tIFD = (from t in tiffTags where t.TagID == 330 select t).FirstOrDefault();
-            HasSubIFD = tIFD.TagID == 330;
-            SubIFDS = new TiffIFD[tIFD.DataCount];
+            HasSubIFD = tIFD!=null && tIFD.TagID == 330;
+            if(HasSubIFD)
+                SubIFDS = new TiffIFD[tIFD.DataCount];
 
         }
         public ushort tagCount { get; set; }
@@ -45,7 +46,8 @@ namespace Raw2Jpeg.TiffStructure
 
         public ushort? Compression
         {
-            get {
+            get
+            {
                 var comp = (from t in tiffTags where t.TagID == 259 select t.TagValue).FirstOrDefault();
                 if (comp == null)
                     return null;
@@ -55,7 +57,8 @@ namespace Raw2Jpeg.TiffStructure
 
         public uint? Width
         {
-            get {
+            get
+            {
                 var width = (from t in tiffTags where t.TagID == 256 select t.TagValue).FirstOrDefault();
                 if (width == null)
                     return null;
@@ -86,7 +89,8 @@ namespace Raw2Jpeg.TiffStructure
 
         public ushort? Orientation
         {
-            get {
+            get
+            {
                 var Orientation = (from t in tiffTags where t.TagID == 274 select t.TagValue).FirstOrDefault();
                 if (Orientation == null)
                     return null;
@@ -95,17 +99,19 @@ namespace Raw2Jpeg.TiffStructure
             }
         }
 
-        public short[] BitsPerSample {
-            get {
+        public short[] BitsPerSample
+        {
+            get
+            {
                 var bps = (from t in tiffTags where t.TagID == 258 select t.TagValue).FirstOrDefault();
                 if (bps == null)
                     return default(short[]);
                 if (bps.GetType() == typeof(ushort))
                 {
-                    var bs = (ushort)bps ;
+                    var bs = (ushort)bps;
                     return new short[] { (short)bs };
                 }
-                return (short[])bps;           
+                return (short[])bps;
             }
         }
 

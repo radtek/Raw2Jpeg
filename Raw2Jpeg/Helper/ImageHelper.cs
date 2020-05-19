@@ -58,12 +58,12 @@ namespace Raw2Jpeg.Helper
             return bReturn;
         }
 
-        public static byte[] byteArrayToBMP(int width, int height, ref byte[] pixels)
+        public static byte[] byteArrayToBMP(int width, int height, ref byte[] pixels, PixelFormat pixFormat=PixelFormat.Format24bppRgb)
         {
             byte[] bReturn=default(byte[]);
             using (Bitmap bmp = new Bitmap(width, height))
             {
-                BitmapData bmd = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+                BitmapData bmd = bmp.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, pixFormat);
                 IntPtr ptrFirstPixel = bmd.Scan0;
                 Marshal.Copy(pixels, 0, ptrFirstPixel, pixels.Length);
                 bmp.UnlockBits(bmd);
@@ -243,12 +243,172 @@ namespace Raw2Jpeg.Helper
             return bReturn;
         }
 
+        public static byte[] ConvertFromCFA(int width, int height, ref byte[] pixels16)
+        {
+            int widthPixel = width * 2;
+            byte[] bReturn = new byte[width*3 * height];
+            //UInt16[,] bMosaic = new UInt16[height, width];
+            byte[,] bMosaic = new byte[height, width];
+            RGB[,] rGBs = new RGB[height, width];
 
-        public static byte[] ConvertFrom16bits(int width, int height, ref byte[] pixels16)
+            for (int i = 0; i < height; ++i)
+            {
+                int currentLine = i * width * 2;
+
+                for (int j = 0; j < widthPixel; j += 2)
+                {
+                    bMosaic[i,j/2] = pixels16[currentLine + j];
+                    //bMosaic[i, j / 2] = (ushort)(BitConverter.ToUInt16(pixels16,currentLine + j));
+                }
+            }
+
+
+            bool isBColumn = false;
+
+            bool isBRow = false;
+            bool isBPosition, isRPosition, isGPosition;
+
+            for (int i = 0; i < height; ++i)
+            {
+                //determine blue row
+                isBRow = i % 2 == 1;
+
+                for (int j = 0; j < width; j += 2)
+                {
+                    //determine blue column
+                    isBColumn = (j / 2) % 2 == 0;
+
+                    if (i < 2 || j < 2 || i > height - 3 || j > width - 3)
+                        continue;
+                    UInt16 r = 0, g = 0, b = 0;
+
+                    
+                    //determine position
+                    if (isBColumn && isBRow)
+                    {
+                        isBPosition = true;
+                        isRPosition = isGPosition = false;
+                    }
+                    else if (!isBColumn && !isBRow)
+                    {
+                        isRPosition = true;
+                        isBPosition = isGPosition = false;
+                    }
+                    else
+                    {
+                        isGPosition = true;
+                        isRPosition = isBPosition = false;
+                    }
+
+                    //Built 8 case 
+                    if (isRPosition)
+                    {
+                        //G at R position
+                        g = (ushort)((4 * bMosaic[i, j] + 2 * (bMosaic[i - 1, j] + bMosaic[i + 1, j] + bMosaic[i, j - 1] + bMosaic[i, j + 1]) - (bMosaic[i - 2, j] + bMosaic[i + 2, j] + bMosaic[i, j - 2] + bMosaic[i, j + 2])) / 8);
+
+                        //B at red in R row R column
+                        b =(ushort)((6 * bMosaic[i, j] + 2 * (bMosaic[i - 1, j - 1] + bMosaic[i + 1, j - 1] + bMosaic[i - 1, j + 1] + bMosaic[i + 1, j + 1]) - 3 / 2 * (bMosaic[i - 2, j] + bMosaic[i + 2, j] + bMosaic[i, j - 2] + bMosaic[i, j + 2])) / 20);
+
+                        //R at red position
+                        r = bMosaic[i, j];
+
+                    }
+                    if (isGPosition)
+                    {
+
+                        if (isBRow)
+                        {
+                            //R at green in B row  R column
+                            r =(ushort)( (5 * bMosaic[i, j]  + 4 * (bMosaic[i, j - 1]  + bMosaic[i, j + 1] ) - (bMosaic[i - 1, j - 1]  + bMosaic[i + 1, j - 1]  + bMosaic[i - 1, j + 1]  + bMosaic[i - 1, j + 1]  + bMosaic[i, j - 2]  + bMosaic[i, j + 2] ) + 1 / 2 * (bMosaic[i - 2, j]  + bMosaic[i + 2, j] )) / 8.0f);
+
+                            //B at green in B row R column
+                            b =(ushort)( (5 * bMosaic[i, j]  + 4 * (bMosaic[i - 1, j]  + bMosaic[i + 1, j] ) - (bMosaic[i - 1, j - 1]  + bMosaic[i + 1, j - 1]  + bMosaic[i - 1, j + 1]  + bMosaic[i - 1, j + 1]  + bMosaic[i, j - 2]  + bMosaic[i, j + 2] ) + 1 / 2 * (bMosaic[i - 2, j]  + bMosaic[i + 2, j] )) / 8.0f);
+
+                            g = (ushort)(bMosaic[i, j]);
+
+                        }
+                        else
+                        {
+                            //R at green in R row  B column
+                            r = (ushort)((5 * bMosaic[i, j]  + 4 * (bMosaic[i - 1, j]  + bMosaic[i + 1, j] ) - (bMosaic[i - 1, j - 1]  + bMosaic[i + 1, j - 1]  + bMosaic[i - 1, j + 1]  + bMosaic[i - 1, j + 1]  + bMosaic[i, j - 2]  + bMosaic[i, j + 2] ) + 1 / 2 * (bMosaic[i - 2, j]  + bMosaic[i + 2, j] )) / 8.0f);
+
+                            //B at green in R row B column
+                            b = (ushort)((5 * bMosaic[i, j]  + 4 * (bMosaic[i, j - 1]  + bMosaic[i, j + 1] ) - (bMosaic[i - 1, j - 1]  + bMosaic[i + 1, j - 1]  + bMosaic[i - 1, j + 1]  + bMosaic[i - 1, j + 1]  + bMosaic[i, j - 2]  + bMosaic[i, j + 2] ) + 1 / 2 * (bMosaic[i - 2, j]  + bMosaic[i + 2, j] )) / 8.0f);
+
+                            g = (ushort)(bMosaic[i, j]);
+                        }
+
+                    }
+                    if (isBPosition)
+                    {
+                        //G at B position
+                        g = (ushort)((4 * bMosaic[i, j]  + 2 * (bMosaic[i - 1, j]  + bMosaic[i + 1, j]  + bMosaic[i, j - 1]  + bMosaic[i, j + 1] ) - (bMosaic[i - 2, j]  + bMosaic[i + 2, j]  + bMosaic[i, j - 2]  + bMosaic[i, j + 2] )) / 8);
+
+                        //R at blue in B row  B column
+                        r = (ushort)((6 * bMosaic[i, j]  + 2 * (bMosaic[i - 1, j - 1]  + bMosaic[i + 1, j - 1]  + bMosaic[i - 1, j + 1]  + bMosaic[i + 1, j + 1] ) - 3 / 2 * (bMosaic[i - 2, j]  + bMosaic[i + 2, j]  + bMosaic[i, j - 2]  + bMosaic[i, j + 2] )) / 20);
+
+                        b = (ushort)(bMosaic[i, j]);
+
+                    }
+                    rGBs[i, j] = new RGB((byte)(r ), (byte)(g ), (byte)(b  ));
+                    rGBs[i, j] = new RGB((byte)(bMosaic[i, j] ), (byte)(bMosaic[i, j] ), (byte)(bMosaic[i, j] ));
+                }
+            }
+            for (int i = 0; i < height; ++i)
+            {
+                int currentLine = i * width * 3;
+
+                for (int j = 0; j < width*3; j += 3)
+                {
+                    bReturn[currentLine + j] = rGBs[i, j / 3].R;
+                    bReturn[currentLine + j + 1] = rGBs[i, j / 3].G;
+                    bReturn[currentLine + j + 2] = rGBs[i, j / 3].B;
+                }
+            }
+            return bReturn;
+
+        }
+
+
+        public static byte[] ConvertFrom16bits565(int width, int height, ref byte[] pixels16)
         {
 
             ushort red_mask = 0xF800;
-            ushort green_mask = 0x7E0;
+            ushort green_mask = 0x07E0;
+            ushort blue_mask = 0x001F;
+
+            int byteCount = width * 3 * height;
+            byte[] pixels = new byte[byteCount];
+            int heightInPixels = height;
+
+            for (int i = 0; i < heightInPixels; ++i)
+            {
+                int currentLine = i * width * 3;
+
+                for (int j = 0; j < width; j++)
+                {
+                    var sVal = BitConverter.ToUInt16(pixels16, i * width * 2 + j * 2);
+                    UInt32 B = (UInt32)(((sVal & 0x001F) << 3) | (sVal & 0x0007));
+
+                    UInt32 G = (UInt32)(((sVal & 0x07E0) << 5) | ((sVal & 0x0060) << 3));
+
+                    UInt32 R = (UInt32)(((sVal & 0xF800) << 8) | ((sVal & 0x3800) << 5));
+                    UInt32 rgb= (R | G | B);
+                    byte[] RGB = BitConverter.GetBytes(rgb);
+
+                    pixels[currentLine + j * 3] = RGB[0];
+                    pixels[currentLine + j * 3 + 1] = RGB[1];
+                    pixels[currentLine + j * 3 + 2] = RGB[2];
+                }
+            }
+            return pixels;
+        }
+
+        public static byte[] ConvertFrom16bits555(int width, int height, ref byte[] pixels16)
+        {
+
+            ushort red_mask = 0x7C00;
+            ushort green_mask = 0x3E0;
             ushort blue_mask = 0x1F;
 
             int byteCount = width * 3 * height;
@@ -262,9 +422,9 @@ namespace Raw2Jpeg.Helper
                 for (int j = 0; j < width; j++)
                 {
                     var sVal = BitConverter.ToUInt16(pixels16, i * width * 2 + j * 2);
-                    var b5 = (sVal & blue_mask);
-                    var g6 = ((sVal & green_mask) >> 5) * 255 / 63;
-                    var r5 = ((sVal & red_mask) >> 11) * 255 / 31;
+                    var b5 = ((sVal & blue_mask))<<3;
+                    var g6 = (((sVal & green_mask) >> 5) * 255 / 63)<<3;
+                    var r5 = (((sVal & red_mask) >> 10) * 255 / 31)<<3;
 
                     var r8 = (r5 * 527 + 23) >> 6;
                     var g8 = (g6 * 259 + 33) >> 6;
@@ -287,6 +447,7 @@ namespace Raw2Jpeg.Helper
 
             return pixels;
         }
+
 
         public static byte[] ConvertFromUncompressed(int width, int height, ref byte[] pixels16)
         {

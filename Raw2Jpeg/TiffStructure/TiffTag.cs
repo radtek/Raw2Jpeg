@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Raw2Jpeg.TiffStructure
 {
-    public struct TiffTag
+    public class TiffTag
     {
         public TiffTag(ref byte[] Content, uint adressOffset, bool ISBigEndian)
         {
@@ -15,18 +15,18 @@ namespace Raw2Jpeg.TiffStructure
 
             if (ISBigEndian)
             {
-                bTagID = new byte[] { Content[adressOffset+1], Content[adressOffset] };
-                bDataType = new byte[] { Content[adressOffset+3], Content[adressOffset+2] };
-                bDataCount = new byte[] { Content[adressOffset+7], Content[adressOffset+6], Content[adressOffset+5], Content[adressOffset+4] };
-                bDataOffset = new byte[] { Content[adressOffset+11], Content[adressOffset+10], Content[adressOffset+9], Content[adressOffset+8] };
+                bTagID = new byte[] { Content[adressOffset + 1], Content[adressOffset] };
+                bDataType = new byte[] { Content[adressOffset + 3], Content[adressOffset + 2] };
+                bDataCount = new byte[] { Content[adressOffset + 7], Content[adressOffset + 6], Content[adressOffset + 5], Content[adressOffset + 4] };
+                bDataOffset = new byte[] { Content[adressOffset + 11], Content[adressOffset + 10], Content[adressOffset + 9], Content[adressOffset + 8] };
 
             }
             else
             {
-                bTagID = new byte[] { Content[adressOffset], Content[adressOffset+1] };
-                bDataType = new byte[] { Content[adressOffset+2], Content[adressOffset+3] };
-                bDataCount = new byte[] { Content[adressOffset+4], Content[adressOffset+5], Content[adressOffset+6], Content[adressOffset+7] };
-                bDataOffset = new byte[] { Content[adressOffset+8], Content[adressOffset+9], Content[adressOffset+10], Content[adressOffset+11] };
+                bTagID = new byte[] { Content[adressOffset], Content[adressOffset + 1] };
+                bDataType = new byte[] { Content[adressOffset + 2], Content[adressOffset + 3] };
+                bDataCount = new byte[] { Content[adressOffset + 4], Content[adressOffset + 5], Content[adressOffset + 6], Content[adressOffset + 7] };
+                bDataOffset = new byte[] { Content[adressOffset + 8], Content[adressOffset + 9], Content[adressOffset + 10], Content[adressOffset + 11] };
             }
             TagID = BitConverter.ToUInt16(bTagID, 0);
             if (TiffTagIDValue.TagValue.ContainsKey(TagID))
@@ -37,7 +37,7 @@ namespace Raw2Jpeg.TiffStructure
             DataCount = BitConverter.ToUInt32(bDataCount, 0);
             DataOffset = BitConverter.ToUInt32(bDataOffset, 0);
             TagValue = null;
-            TagValue = TiffType.getValue(this,ref Content, ISBigEndian);
+            TagValue = TiffType.getValue(this, ref Content, ISBigEndian);
         }
 
         public ushort TagID { get; private set; }
@@ -46,7 +46,8 @@ namespace Raw2Jpeg.TiffStructure
         public uint DataCount { get; private set; }
         public uint DataOffset { get; private set; }
 
-        public object TagValue {
+        public object TagValue
+        {
             get;
             private set;
         }

@@ -21,7 +21,7 @@ namespace TestLibrary
                 FileStream fs = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
                 byte[] bInput = new byte[fs.Length];
                 fs.Read(bInput, 0, (int)fs.Length);
-                Tiff tiff = new Tiff(ref bInput);
+                RawBase tiff = new RawBase(ref bInput);
                 if(tiff.Bitmap!=default(byte[]))
                     File.WriteAllBytes(string.Format("c:\\temp\\Destination\\{0}.jpg", pathName), tiff.Bitmap);
             }

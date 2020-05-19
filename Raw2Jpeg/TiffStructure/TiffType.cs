@@ -136,7 +136,7 @@ namespace Raw2Jpeg.TiffStructure
             return objReturn;
         }
 
-        private static float getRational(uint dataOffset, byte[] binput, bool isBigEndian)
+        internal static float getRational(uint dataOffset, byte[] binput, bool isBigEndian)
         {
             var numerator = getInt(dataOffset, binput, isBigEndian);
             var denominator = getInt(dataOffset+4, binput, isBigEndian);
@@ -145,7 +145,7 @@ namespace Raw2Jpeg.TiffStructure
             return numerator / denominator;
         }
 
-        private static object GetString(uint dataCount, uint dataOffset, byte[] binput, bool isBigEndian)
+        internal static object GetString(uint dataCount, uint dataOffset, byte[] binput, bool isBigEndian)
         {
             ASCIIEncoding aSCII = new ASCIIEncoding();
             byte[] bascii = new byte[dataCount];
