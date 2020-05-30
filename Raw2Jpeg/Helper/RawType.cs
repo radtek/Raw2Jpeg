@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Raw2Jpeg
+namespace Raw2Jpeg.Helper
 {
     public enum RawType
     {

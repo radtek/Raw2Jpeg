@@ -11,12 +11,13 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Raw2Jpeg
+namespace Raw2Jpeg.Helper
 {
     public class RawBase
     {
         byte[] _content;
         TiffHeader _header;
+        CRXHeader crxheader;
         RawType _rawType;
         public RawBase(ref byte[] Content)
         {
@@ -24,7 +25,7 @@ namespace Raw2Jpeg
             {
                 _rawType = RawType.CR3;
                 this._content = Content;
-                var crxheader = new CRXHeader(ref Content);
+                crxheader = new CRXHeader(ref Content);
             }
             else
             {
@@ -58,12 +59,84 @@ namespace Raw2Jpeg
                         return Get3FRbitmap();
                     case RawType.DNG:
                         return GetDNGBitmap();
+                    case RawType.CR3:
+                        return GetCR3Bitmap();
                     default:
                         return GetTiffBitmap();
                 }
 
             }
 
+        }
+
+        public Dictionary<string, string> MetaData { get {
+                if (_rawType != RawType.CR3)
+                {
+                    return ParseTiffMetadata(_header.IFDs);
+                }
+                else {
+                    TiffHeader th= FindTiffCR3();
+                return ParseTiffMetadata(th.IFDs);
+                }
+            
+            } }
+
+        private TiffHeader FindTiffCR3()
+        {
+            return FindTiffCR3(crxheader.IFDs);
+        }
+
+        private TiffHeader FindTiffCR3(CRXIFD[] ifd)
+        {
+            TiffHeader tiffHeader=null; 
+            foreach (var i in ifd)
+            {
+                if (i.SubIFD.Length > 0)
+                    tiffHeader= FindTiffCR3(i.SubIFD);
+                if (i.TiffData != null)
+                    tiffHeader = i.TiffData;
+                if (tiffHeader != null)
+                    return tiffHeader;
+            }
+            return tiffHeader;
+        }
+
+        private Dictionary<string, string> ParseTiffMetadata(TiffIFD[] iFDs)
+        {
+            Dictionary<string, string> dicValue = new Dictionary<string, string>();
+            foreach (var i in iFDs)
+            {
+                foreach (var t in i.tiffTags)
+                {
+                    if (!string.IsNullOrEmpty(t.TagName)&& t.TagName!= "NewSubfileType")
+                        if (!dicValue.ContainsKey(t.TagName))
+                            dicValue.Add(t.TagName, t.TagValue.ToString());
+                        else
+                            dicValue[t.TagName] += "," + t.TagValue.ToString();
+                }
+                if (i.HasSubIFD)
+                    dicValue= dicValue.Concat(ParseTiffMetadata(i.SubIFDS)).ToDictionary(x=>x.Key,x=>x.Value);
+            }
+            return dicValue;
+        }
+
+        private byte[] GetCR3Bitmap()
+        {
+            var prvw = FindPRVW(crxheader.IFDs);
+            return prvw[0].JPG;
+        }
+
+        private PRVW[] FindPRVW(CRXIFD[] cRXIFDs)
+        {
+            List<PRVW> lstPrvw = new List<PRVW>();
+            foreach (var c in cRXIFDs)
+            {
+                if (c.Name == "PRVW" && c.PRVW!=null)
+                    lstPrvw.Add( c.PRVW);
+                else if (c.SubIFD.Length > 0)
+                    lstPrvw.AddRange(FindPRVW(c.SubIFD));
+            }
+            return lstPrvw.ToArray();
         }
 
         private byte[] GetDNGBitmap()

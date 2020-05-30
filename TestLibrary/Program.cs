@@ -1,5 +1,8 @@
 ﻿using Raw2Jpeg;
+using Raw2Jpeg.Helper;
+using Raw2Jpeg.RawStructure;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -21,9 +24,17 @@ namespace TestLibrary
                 FileStream fs = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
                 byte[] bInput = new byte[fs.Length];
                 fs.Read(bInput, 0, (int)fs.Length);
-                RawBase tiff = new RawBase(ref bInput);
-                if(tiff.Bitmap!=default(byte[]))
-                    File.WriteAllBytes(string.Format("c:\\temp\\Destination\\{0}.jpg", pathName), tiff.Bitmap);
+                Raw tiff = new Raw( bInput);
+                var bmp = tiff.Bitmap;
+                var md= tiff.MetaData;
+                if (bmp != default(byte[]))
+                {
+                    byte[] bOut;
+                    ImageHelper.AutoOrientation(tiff.Orientation, ref bmp, out bOut);
+                    File.WriteAllBytes(string.Format("c:\\temp\\Destination\\{0}.jpg", pathName), bOut);
+                }
+                if (md != null)
+                    File.WriteAllLines(string.Format("c:\\temp\\Destination\\{0}.txt", pathName), md.Select(x => "[" + x.Key + "]:\t" + x.Value).ToArray());
             }
 
         }

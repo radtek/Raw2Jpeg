@@ -16,6 +16,7 @@ namespace Raw2Jpeg.CrxStructure
             IFDs = FillIFD();
         }
 
+
         private CRXIFD[] FillIFD()
         {
 

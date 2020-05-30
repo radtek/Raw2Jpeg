@@ -149,6 +149,11 @@ namespace Raw2Jpeg.TiffStructure
         {
             ASCIIEncoding aSCII = new ASCIIEncoding();
             byte[] bascii = new byte[dataCount];
+            if (dataCount < 4)
+            {
+                binput = BitConverter.GetBytes(dataOffset);
+                dataOffset = 0;
+            }
             Array.Copy(binput, dataOffset, bascii, 0, dataCount);
             return aSCII.GetString(bascii);
         }
@@ -191,6 +196,8 @@ namespace Raw2Jpeg.TiffStructure
         public static object getUndefined(uint DataOffset, byte[] binput, bool isBigEndian)
         {
             byte[] breturn = new byte[8];
+            if (DataOffset > binput.Length)
+                return BitConverter.GetBytes(DataOffset);
             Array.Copy(binput, DataOffset, breturn, 0, 8);
             return breturn;
         }
